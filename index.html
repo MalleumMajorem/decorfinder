@@ -56,7 +56,7 @@
 
         textarea {
             width: 100%;
-            height: 160px;
+            height: 200px;
             background-color: var(--panel-bg);
             color: var(--text-main);
             border: 1px solid var(--border-color);
@@ -187,28 +187,6 @@
         .unmatched-card .vendor-name {
             color: #e57373;
         }
-
-        details {
-            margin-top: 15px;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-        }
-
-        details summary {
-            cursor: pointer;
-        }
-
-        .fallback-inputs {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .fallback-inputs textarea {
-            height: 90px;
-            font-size: 0.8rem;
-        }
     </style>
 </head>
 <body>
@@ -217,29 +195,14 @@
     <header>
         <h1>WoW Decor Sourcing Assistant</h1>
         <div id="statusBar" class="status-bar status-loading">
-            <span id="statusText">Attempting to read ActiveItems.lua and GalleryVendorDetails.lua...</span>
+            <span id="statusText">Loading ActiveItems.lua and GalleryVendorDetails.lua...</span>
         </div>
     </header>
 
-    <label for="itemListInput"><strong>Paste List of Decor Items (or IDs), one per line:</strong></label>
+    <label for="itemListInput"><strong>Paste List of Decor Items (preserves raw line format):</strong></label>
     <textarea id="itemListInput" placeholder="45x Runed Stone Placard&#10;7x Three-Candle Wrought Iron Chandelier&#10;1x Elwynn Autumn Apple Tree&#10;15x Orange Housing Dye (dye)"></textarea>
 
     <button id="matchBtn" onclick="runMatcher()" disabled>Find Sources & Group Vendors</button>
-
-    <details>
-        <summary>Manual File Paste Fallback (Click if viewing locally outside a web server)</summary>
-        <div class="fallback-inputs">
-            <div>
-                <label>ActiveItems.lua:</label>
-                <textarea id="manualActive" placeholder="Paste ActiveItems.lua contents here..."></textarea>
-            </div>
-            <div>
-                <label>GalleryVendorDetails.lua:</label>
-                <textarea id="manualGallery" placeholder="Paste GalleryVendorDetails.lua contents here..."></textarea>
-            </div>
-        </div>
-        <button onclick="parseFromManualInput()" style="margin-top: 8px;">Parse Pasted Files</button>
-    </details>
 
     <div id="results" class="results-container"></div>
 </div>
@@ -262,7 +225,6 @@
         37829: "Brewfest Tokens"
     };
 
-    // Auto-fetch files on load
     window.addEventListener('DOMContentLoaded', async () => {
         const statusBar = document.getElementById('statusBar');
         const statusText = document.getElementById('statusText');
@@ -275,7 +237,7 @@
             ]);
 
             if (!activeRes.ok || !galleryRes.ok) {
-                throw new Error("HTTP " + activeRes.status + " / " + galleryRes.status);
+                throw new Error("HTTP error: " + activeRes.status + " / " + galleryRes.status);
             }
 
             const activeText = await activeRes.text();
@@ -284,22 +246,21 @@
             buildDatabase(activeText, galleryText);
 
             statusBar.className = "status-bar status-success";
-            statusText.textContent = `✓ Successfully loaded database (${decorDatabase.length} decor entries indexed).`;
+            statusText.textContent = `✓ Successfully loaded database (${decorDatabase.length} entries indexed).`;
             matchBtn.disabled = false;
         } catch (err) {
             statusBar.className = "status-bar status-error";
-            statusText.textContent = `Could not auto-fetch .lua files. If running locally via file://, use the manual paste section below.`;
+            statusText.textContent = `Error loading Lua files: ${err.message}. Make sure ActiveItems.lua and GalleryVendorDetails.lua are in the same folder.`;
         }
     });
 
-    function parseFromManualInput() {
-        const activeText = document.getElementById('manualActive').value;
-        const galleryText = document.getElementById('manualGallery').value;
-        if (!activeText) return;
-        buildDatabase(activeText, galleryText);
-        document.getElementById('matchBtn').disabled = false;
-        document.getElementById('statusBar').className = "status-bar status-success";
-        document.getElementById('statusText').textContent = `✓ Successfully parsed manual data (${decorDatabase.length} decor entries).`;
+    function escapeHtml(text) {
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
     }
 
     function buildDatabase(activeStr, galleryStr) {
@@ -307,56 +268,15 @@
         const vendorZones = {};
         const itemVendorDetails = {};
 
-        // 1. Extract Vendor Details & Zones from GalleryVendorDetails.lua
-        if (galleryStr) {
-            let currentRootItemId = null;
-            const galleryLines = galleryStr.split('\n');
-
-            for (let rawLine of galleryLines) {
-                const line = rawLine.trim();
-                if (!line || line.startsWith('--')) continue;
-
-                // Single line: Gallery.VendorDetails[277921] = { [257598] = { ... displayZone = "..." } }
-                let singleLine = line.match(/Gallery\.VendorDetails\[(\d+)\]\s*=\s*\{\s*\[(\d+)\]\s*=\s*\{([^}]+)\}/);
-                if (!singleLine) {
-                    singleLine = line.match(/^\[(\d+)\]\s*=\s*\{\s*\[(\d+)\]\s*=\s*\{([^}]+)\}/);
-                }
-                if (singleLine) {
-                    recordGalleryEntry(singleLine[1], singleLine[2], singleLine[3]);
-                    continue;
-                }
-
-                // Root item ID declaration: [284223] = {
-                const rootMatch = line.match(/^\[(\d+)\]\s*=\s*\{/);
-                if (rootMatch) {
-                    currentRootItemId = rootMatch[1];
-                    continue;
-                }
-
-                // Nested vendor line: [49877] = { ... displayZone = "..." }
-                const nestedMatch = line.match(/^\[(\d+)\]\s*=\s*\{([^}]+)\}/);
-                if (nestedMatch && currentRootItemId) {
-                    recordGalleryEntry(currentRootItemId, nestedMatch[1], nestedMatch[2]);
-                    continue;
-                }
-
-                if (line.startsWith('},') || line.startsWith('}')) {
-                    currentRootItemId = null;
-                }
-            }
-        }
-
         function recordGalleryEntry(itemId, vendorId, content) {
             if (!itemVendorDetails[itemId]) itemVendorDetails[itemId] = {};
 
             const zoneMatch = content.match(/displayZone\s*=\s*"([^"]+)"/);
             const zone = zoneMatch ? zoneMatch[1].trim() : null;
-
             if (zone) {
                 vendorZones[vendorId] = zone;
             }
 
-            // Price formatting
             let priceFormatted = "";
             const priceTextMatch = content.match(/priceText\s*=\s*"([^"]+)"/);
             const currMatch = content.match(/currencyID\s*=\s*(\d+)/);
@@ -373,7 +293,6 @@
                 priceFormatted = `${Math.floor(parseInt(moneyMatch[1]) / 10000)}g`;
             }
 
-            // Requirements
             let reqFormatted = "";
             const facMatch = content.match(/faction\s*=\s*"([^"]+)"/);
             const rankMatch = content.match(/rank\s*=\s*"?([^",}]+)"?/);
@@ -388,10 +307,46 @@
             };
         }
 
+        // 1. Parse GalleryVendorDetails.lua
+        if (galleryStr) {
+            let currentRootItemId = null;
+            const galleryLines = galleryStr.split('\n');
+
+            for (let rawLine of galleryLines) {
+                const line = rawLine.trim();
+                if (!line || line.startsWith('--')) continue;
+
+                // Match single line items: [244349] = { [242399] = { ... } } or Gallery.VendorDetails[277921] = ...
+                const doubleMatch = line.match(/(?:Gallery\.VendorDetails\s*)?\[(\d+)\]\s*=\s*\{\s*\[(\d+)\]\s*=\s*\{([\s\S]+)\}/);
+                if (doubleMatch) {
+                    recordGalleryEntry(doubleMatch[1], doubleMatch[2], doubleMatch[3]);
+                    continue;
+                }
+
+                // Match start of root multi-line item: [284223] = {
+                const rootMatch = line.match(/^\[(\d+)\]\s*=\s*\{/);
+                if (rootMatch && !line.includes('displayZone') && !line.includes('price')) {
+                    currentRootItemId = rootMatch[1];
+                    continue;
+                }
+
+                // Match nested vendor row inside root block: [49877] = { ... }
+                const nestedMatch = line.match(/^\[(\d+)\]\s*=\s*\{([\s\S]+)\}/);
+                if (nestedMatch && currentRootItemId) {
+                    recordGalleryEntry(currentRootItemId, nestedMatch[1], nestedMatch[2]);
+                    continue;
+                }
+
+                if (line.startsWith('},') || line === '}') {
+                    currentRootItemId = null;
+                }
+            }
+        }
+
         // 2. Parse ActiveItems.lua
         const activeLines = activeStr.split('\n');
         let currentHeaderVendors = [];
-        let currentSectionType = "";
+        let currentSectionType = "vendor";
 
         decorDatabase = [];
 
@@ -413,50 +368,81 @@
                 currentHeaderVendors = [];
             } else if (line.includes("Daily Quest") || line.includes("quest")) {
                 currentSectionType = "Quest";
+                currentHeaderVendors = [];
             }
 
-            const itemMatch = rawLine.match(/DVD\.ActiveItems\[(\d+)\]\s*=\s*\{([^}]+)\}\s*--\s*(.*)/);
-            if (itemMatch) {
-                const itemId = itemMatch[1];
-                const itemBody = itemMatch[2];
-                let itemName = itemMatch[3].trim();
-                
-                if (itemName.includes(" = ")) itemName = itemName.split(" = ")[0].trim();
+            const activeItemIdx = rawLine.indexOf("DVD.ActiveItems[");
+            if (activeItemIdx === -1) continue;
 
-                const decorIdMatch = itemBody.match(/decorID\s*=\s*(\d+)/);
-                const sourceMatch = itemBody.match(/source\s*=\s*"([^"]+)"/);
-                const zoneMatch = itemBody.match(/zone\s*=\s*"([^"]+)"/);
-                const soldByMatch = itemBody.match(/soldBy\s*=\s*\{([^}]+)\}/);
+            const idMatch = rawLine.substring(activeItemIdx).match(/DVD\.ActiveItems\[(\d+)\]/);
+            if (!idMatch) continue;
+            const itemId = idMatch[1];
 
-                const decorId = decorIdMatch ? decorIdMatch[1] : null;
-                const source = sourceMatch ? sourceMatch[1] : currentSectionType;
-                const inherentZone = zoneMatch ? zoneMatch[1] : null;
-
-                let associatedVendors = [];
-                if (soldByMatch) {
-                    associatedVendors = soldByMatch[1].split(',').map(s => s.trim());
-                } else if (currentHeaderVendors.length > 0) {
-                    associatedVendors = [...currentHeaderVendors];
+            // Extract item name from comment
+            const commentIdx = rawLine.indexOf("--", activeItemIdx);
+            let itemName = "";
+            if (commentIdx !== -1) {
+                itemName = rawLine.substring(commentIdx + 2).trim();
+                if (itemName.includes(" = ")) {
+                    itemName = itemName.split(" = ")[0].trim();
                 }
+            }
+            if (!itemName) continue;
 
-                if (associatedVendors.length > 0) {
-                    for (let vId of associatedVendors) {
-                        const vName = vendorNames[vId] || `Vendor (${vId})`;
-                        const details = itemVendorDetails[itemId]?.[vId] || {};
-                        const zone = details.zone || vendorZones[vId] || inherentZone || "World";
+            // Extract table body by brace offsets rather than fragile regex
+            const firstBrace = rawLine.indexOf("{", activeItemIdx);
+            const lastBrace = commentIdx !== -1 
+                ? rawLine.lastIndexOf("}", commentIdx) 
+                : rawLine.lastIndexOf("}");
+            
+            const itemBody = (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace)
+                ? rawLine.substring(firstBrace + 1, lastBrace)
+                : "";
 
-                        decorDatabase.push({
-                            itemId, decorId, name: itemName, source, vendorName: vName, zone: zone,
-                            price: details.price || "", requirement: details.requirement || ""
-                        });
-                    }
-                } else {
+            const decorIdMatch = itemBody.match(/decorID\s*=\s*(\d+)/);
+            const sourceMatch = itemBody.match(/source\s*=\s*"([^"]+)"/);
+            const zoneMatch = itemBody.match(/zone\s*=\s*"([^"]+)"/);
+            const soldByMatch = itemBody.match(/soldBy\s*=\s*\{([^}]+)\}/);
+
+            const decorId = decorIdMatch ? decorIdMatch[1] : null;
+            const source = sourceMatch ? sourceMatch[1] : currentSectionType;
+            const inherentZone = zoneMatch ? zoneMatch[1] : null;
+
+            let associatedVendors = [];
+            if (soldByMatch) {
+                associatedVendors = soldByMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+            } else if (currentHeaderVendors.length > 0) {
+                associatedVendors = [...currentHeaderVendors];
+            }
+
+            if (associatedVendors.length > 0) {
+                for (let vId of associatedVendors) {
+                    const vName = vendorNames[vId] || `Vendor (${vId})`;
+                    const details = itemVendorDetails[itemId]?.[vId] || {};
+                    const zone = details.zone || vendorZones[vId] || inherentZone || "World";
+
                     decorDatabase.push({
-                        itemId, decorId, name: itemName, source: source || "World / Quest",
-                        vendorName: currentSectionType || "World Drop / Quest", zone: inherentZone || "Various Zones",
-                        price: "", requirement: ""
+                        itemId,
+                        decorId,
+                        name: itemName,
+                        source: source || "vendor",
+                        vendorName: vName,
+                        zone: zone,
+                        price: details.price || "",
+                        requirement: details.requirement || ""
                     });
                 }
+            } else {
+                decorDatabase.push({
+                    itemId,
+                    decorId,
+                    name: itemName,
+                    source: source || "World / Quest",
+                    vendorName: currentSectionType || "World Drop / Quest",
+                    zone: inherentZone || "Various Zones",
+                    price: "",
+                    requirement: ""
+                });
             }
         }
     }
@@ -480,48 +466,65 @@
         const input = document.getElementById('itemListInput').value;
         const resultsDiv = document.getElementById('results');
 
-        const searchQueries = input.split('\n').map(s => s.trim()).filter(s => s.length > 0);
-        if (searchQueries.length === 0) {
-            resultsDiv.innerHTML = "<p>Please enter at least one decor name or ID.</p>";
+        const searchLines = input.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+        if (searchLines.length === 0) {
+            resultsDiv.innerHTML = "<p>Please enter at least one decor item name.</p>";
             return;
         }
 
         const vendorGroups = {};
         const unmatched = [];
 
-        for (let query of searchQueries) {
-            const queryLower = query.toLowerCase();
+        for (let rawLine of searchLines) {
+            // Normalize for matching only (remove prefixes like "45x " and parenthetical notes like "(dye)")
+            let cleanQuery = rawLine
+                .replace(/^\s*\d+\s*[xX*]\s*/, '')
+                .replace(/\s*\([^)]*\)\s*$/, '')
+                .trim();
+
+            const cleanLower = cleanQuery.toLowerCase();
             let match = null;
 
             // 1. Direct ID lookup
-            if (/^\d+$/.test(query)) {
-                match = decorDatabase.filter(d => d.decorId === query || d.itemId === query);
+            if (/^\d+$/.test(cleanQuery)) {
+                match = decorDatabase.filter(d => d.decorId === cleanQuery || d.itemId === cleanQuery);
             }
 
-            // 2. Substring matching (handles quantity prefixes and label suffixes natively)
+            // 2. Exact match
             if (!match || match.length === 0) {
-                const substringMatches = decorDatabase.filter(d => d.name.length > 3 && queryLower.includes(d.name.toLowerCase()));
-                if (substringMatches.length > 0) {
-                    substringMatches.sort((a, b) => b.name.length - a.name.length);
-                    const longestLength = substringMatches[0].name.length;
-                    match = substringMatches.filter(d => d.name.length === longestLength);
+                const exact = decorDatabase.filter(d => d.name.toLowerCase() === cleanLower);
+                if (exact.length > 0) {
+                    match = exact;
                 }
             }
 
-            // 3. Fallback: Fuzzy matching for minor typos
+            // 3. Substring match
             if (!match || match.length === 0) {
-                let bestMatchName = null;
+                const substr = decorDatabase.filter(d => 
+                    cleanLower.includes(d.name.toLowerCase()) || 
+                    (cleanLower.length > 3 && d.name.toLowerCase().includes(cleanLower))
+                );
+                if (substr.length > 0) {
+                    substr.sort((a, b) => b.name.length - a.name.length);
+                    const longest = substr[0].name.length;
+                    match = substr.filter(d => d.name.length === longest);
+                }
+            }
+
+            // 4. Fuzzy fallback
+            if (!match || match.length === 0) {
+                let bestName = null;
                 let bestDist = Infinity;
-                for (let item of decorDatabase) {
-                    const itemNameLower = item.name.toLowerCase();
-                    const dist = getEditDistance(queryLower, itemNameLower);
+                for (let d of decorDatabase) {
+                    const dist = getEditDistance(cleanLower, d.name.toLowerCase());
                     if (dist < bestDist) {
                         bestDist = dist;
-                        bestMatchName = item.name;
+                        bestName = d.name;
                     }
                 }
-                if (bestMatchName && bestDist <= 5) {
-                    match = decorDatabase.filter(d => d.name === bestMatchName);
+                const maxAllowed = Math.max(2, Math.floor(cleanLower.length * 0.25));
+                if (bestName && bestDist <= maxAllowed) {
+                    match = decorDatabase.filter(d => d.name === bestName);
                 }
             }
 
@@ -531,12 +534,12 @@
                     if (!vendorGroups[groupKey]) {
                         vendorGroups[groupKey] = { vendor: item.vendorName, zone: item.zone, items: [] };
                     }
-                    if (!vendorGroups[groupKey].items.some(i => i.rawInput === query && i.name === item.name)) {
-                        vendorGroups[groupKey].items.push({...item, rawInput: query});
+                    if (!vendorGroups[groupKey].items.some(i => i.rawInput === rawLine && i.name === item.name)) {
+                        vendorGroups[groupKey].items.push({ ...item, rawInput: rawLine });
                     }
                 }
             } else {
-                unmatched.push(query);
+                unmatched.push(rawLine);
             }
         }
 
@@ -549,7 +552,7 @@
         const groupKeys = Object.keys(groups);
 
         if (groupKeys.length === 0 && unmatched.length === 0) {
-            resultsDiv.innerHTML = "<p>No matching items found.</p>";
+            resultsDiv.innerHTML = "<p>No items found to process.</p>";
             return;
         }
 
@@ -558,8 +561,8 @@
             html += `
                 <div class="vendor-card">
                     <div class="vendor-header">
-                        <span class="vendor-name">${grp.vendor}</span>
-                        <span class="vendor-zone">📍 ${grp.zone}</span>
+                        <span class="vendor-name">${escapeHtml(grp.vendor)}</span>
+                        <span class="vendor-zone">📍 ${escapeHtml(grp.zone)}</span>
                     </div>
                     <ul class="item-list">`;
 
@@ -567,12 +570,12 @@
                 html += `
                     <li class="item-row">
                         <div>
-                            <div class="item-title">${itm.rawInput}</div>
-                            ${itm.requirement ? `<span class="meta-tag" style="color: #f0c674;">Req: ${itm.requirement}</span>` : ''}
+                            <div class="item-title">${escapeHtml(itm.rawInput)}</div>
+                            ${itm.requirement ? `<span class="meta-tag" style="color: #f0c674;">Req: ${escapeHtml(itm.requirement)}</span>` : ''}
                         </div>
                         <div class="item-meta">
-                            ${itm.price ? `<span class="meta-price">${itm.price}</span>` : ''}
-                            <span class="meta-tag" style="text-transform: capitalize;">${itm.source}</span>
+                            ${itm.price ? `<span class="meta-price">${escapeHtml(itm.price)}</span>` : ''}
+                            <span class="meta-tag" style="text-transform: capitalize;">${escapeHtml(itm.source)}</span>
                         </div>
                     </li>`;
             }
@@ -588,7 +591,7 @@
                     </div>
                     <ul class="item-list">`;
             for (let u of unmatched) {
-                html += `<li class="item-row"><span style="color: var(--text-muted);">${u}</span></li>`;
+                html += `<li class="item-row"><span style="color: var(--text-muted);">${escapeHtml(u)}</span></li>`;
             }
             html += `</ul></div>`;
         }
