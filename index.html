@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WoW Housing Decor Sourcing Tool</title>
+    <title>WoW Decor Sourcing Assistant</title>
     <style>
         :root {
             --bg-color: #121417;
@@ -16,7 +16,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
@@ -30,33 +30,23 @@
             max-width: 900px;
         }
 
-        header {
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            color: var(--accent-color);
-            margin: 0 0 8px 0;
-            font-size: 1.8rem;
-        }
+        header { margin-bottom: 20px; }
+        h1 { color: var(--accent-color); margin: 0 0 8px 0; font-size: 1.8rem; }
 
         .status-bar {
             padding: 10px 14px;
             border-radius: 6px;
             font-size: 0.9rem;
             margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            font-weight: 600;
         }
-
         .status-loading { background: #2c2514; color: #f0c674; border: 1px solid #634f24; }
         .status-success { background: #18281e; color: #81c784; border: 1px solid #2e5339; }
         .status-error { background: #2d1818; color: #e57373; border: 1px solid #5a2c2c; }
 
         textarea {
             width: 100%;
-            height: 200px;
+            height: 180px;
             background-color: var(--panel-bg);
             color: var(--text-main);
             border: 1px solid var(--border-color);
@@ -67,126 +57,49 @@
             box-sizing: border-box;
             resize: vertical;
         }
-
-        textarea:focus {
-            outline: none;
-            border-color: var(--accent-color);
-        }
+        textarea:focus { outline: none; border-color: var(--accent-color); }
 
         button {
             background-color: var(--accent-color);
             color: #121417;
             border: none;
-            padding: 12px 20px;
+            padding: 14px 20px;
             font-size: 1rem;
             font-weight: 700;
             border-radius: 6px;
             cursor: pointer;
             width: 100%;
-            margin-top: 10px;
+            margin-top: 12px;
             transition: opacity 0.15s ease;
         }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        button:hover {
-            opacity: 0.9;
-        }
-
-        button:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        .results-container {
-            margin-top: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .vendor-card {
-            background-color: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
+        .results-container { margin-top: 30px; display: flex; flex-direction: column; gap: 16px; }
+        .vendor-card { background-color: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
         .vendor-header {
             background-color: rgba(220, 168, 66, 0.08);
             border-bottom: 1px solid var(--border-color);
-            padding: 12px 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
         }
-
-        .vendor-name {
-            font-size: 1.15rem;
-            font-weight: 700;
-            color: var(--accent-color);
-        }
-
-        .vendor-zone {
-            font-size: 0.9rem;
-            color: var(--text-muted);
-            background-color: var(--badge-bg);
-            padding: 3px 8px;
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-        }
-
-        .item-list {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-
+        .vendor-name { font-size: 1.15rem; font-weight: 700; color: var(--accent-color); }
+        .vendor-zone { font-size: 0.9rem; color: var(--text-muted); background-color: var(--badge-bg); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border-color); }
+        
+        .item-list { list-style: none; margin: 0; padding: 0; }
         .item-row {
-            padding: 12px 16px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            padding: 12px 16px; border-bottom: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center;
         }
-
-        .item-row:last-child {
-            border-bottom: none;
-        }
-
-        .item-title {
-            font-weight: 600;
-            color: #cbe3f7;
-        }
-
-        .item-meta {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            font-size: 0.85rem;
-        }
-
-        .meta-tag {
-            background-color: var(--badge-bg);
-            padding: 3px 8px;
-            border-radius: 4px;
-            color: var(--text-muted);
-        }
-
-        .meta-price {
-            color: #ffd700;
-            font-weight: 600;
-        }
-
-        .unmatched-card {
-            border-color: #5a2c2c;
-        }
-
-        .unmatched-card .vendor-header {
-            background-color: rgba(229, 115, 115, 0.1);
-        }
-
-        .unmatched-card .vendor-name {
-            color: #e57373;
-        }
+        .item-row:last-child { border-bottom: none; }
+        .item-title { font-weight: 600; color: #cbe3f7; }
+        .item-meta { display: flex; gap: 8px; align-items: center; font-size: 0.85rem; }
+        .meta-tag { background-color: var(--badge-bg); padding: 3px 8px; border-radius: 4px; color: var(--text-muted); }
+        .meta-price { color: #ffd700; font-weight: 600; }
+        
+        .unmatched-card { border-color: #5a2c2c; }
+        .unmatched-card .vendor-header { background-color: rgba(229, 115, 115, 0.1); }
+        .unmatched-card .vendor-name { color: #e57373; }
+        .search-term-debug { font-size: 0.8rem; color: #777; margin-left: 8px; font-weight: normal; }
     </style>
 </head>
 <body>
@@ -195,14 +108,14 @@
     <header>
         <h1>WoW Decor Sourcing Assistant</h1>
         <div id="statusBar" class="status-bar status-loading">
-            <span id="statusText">Loading ActiveItems.lua and GalleryVendorDetails.lua...</span>
+            <span id="statusText">Fetching lua files from server...</span>
         </div>
     </header>
 
-    <label for="itemListInput"><strong>Paste List of Decor Items (preserves raw line format):</strong></label>
+    <label for="itemListInput"><strong>Paste List of Decor Items (Preserves your raw line format):</strong></label>
     <textarea id="itemListInput" placeholder="45x Runed Stone Placard&#10;7x Three-Candle Wrought Iron Chandelier&#10;1x Elwynn Autumn Apple Tree&#10;15x Orange Housing Dye (dye)"></textarea>
 
-    <button id="matchBtn" onclick="runMatcher()" disabled>Find Sources & Group Vendors</button>
+    <button id="matchBtn" onclick="runMatcher()" disabled>Match Decor Sources</button>
 
     <div id="results" class="results-container"></div>
 </div>
@@ -210,19 +123,11 @@
 <script>
     let decorDatabase = [];
     const knownCurrencies = {
-        823: "Apexis Crystals",
-        824: "Garrison Resources",
-        1155: "Ancient Mana",
-        1220: "Order Resources",
-        1508: "Sightless Eyes",
-        1560: "War Resources",
-        1792: "Honor",
-        1813: "Reservoir Anima",
-        2003: "Dragon Isles Supplies",
-        2815: "Resonance Crystals",
-        3316: "Resonating Bravery",
-        3363: "Artisan Tokens",
-        37829: "Brewfest Tokens"
+        823: "Apexis Crystals", 824: "Garrison Resources", 1155: "Ancient Mana",
+        1220: "Order Resources", 1508: "Sightless Eyes", 1560: "War Resources",
+        1792: "Honor", 1813: "Reservoir Anima", 2003: "Dragon Isles Supplies",
+        2815: "Resonance Crystals", 3316: "Resonating Bravery", 3363: "Artisan Tokens",
+        3448: "Undercoin", 37829: "Brewfest Tokens"
     };
 
     window.addEventListener('DOMContentLoaded', async () => {
@@ -231,13 +136,15 @@
         const matchBtn = document.getElementById('matchBtn');
 
         try {
+            // Append timestamp to force GitHub Pages to bypass the 10-minute cache
+            const cacheBuster = '?v=' + Date.now();
             const [activeRes, galleryRes] = await Promise.all([
-                fetch('./ActiveItems.lua'),
-                fetch('./GalleryVendorDetails.lua')
+                fetch('./ActiveItems.lua' + cacheBuster),
+                fetch('./GalleryVendorDetails.lua' + cacheBuster)
             ]);
 
             if (!activeRes.ok || !galleryRes.ok) {
-                throw new Error("HTTP error: " + activeRes.status + " / " + galleryRes.status);
+                throw new Error(`HTTP Error: ActiveItems (${activeRes.status}) / Gallery (${galleryRes.status})`);
             }
 
             const activeText = await activeRes.text();
@@ -245,22 +152,25 @@
 
             buildDatabase(activeText, galleryText);
 
+            if (decorDatabase.length === 0) {
+                throw new Error("Files loaded, but no decor items were successfully parsed.");
+            }
+
             statusBar.className = "status-bar status-success";
-            statusText.textContent = `✓ Successfully loaded database (${decorDatabase.length} entries indexed).`;
+            statusText.textContent = `✓ Successfully loaded database (${decorDatabase.length} decor sources mapped).`;
             matchBtn.disabled = false;
+            
+            // Console logging for easy debugging
+            console.log(`[Decor Tool] Database ready! Mapped ${decorDatabase.length} item sources.`);
         } catch (err) {
             statusBar.className = "status-bar status-error";
-            statusText.textContent = `Error loading Lua files: ${err.message}. Make sure ActiveItems.lua and GalleryVendorDetails.lua are in the same folder.`;
+            statusText.textContent = `Error: ${err.message}`;
+            console.error(err);
         }
     });
 
     function escapeHtml(text) {
-        return text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
     }
 
     function buildDatabase(activeStr, galleryStr) {
@@ -273,9 +183,7 @@
 
             const zoneMatch = content.match(/displayZone\s*=\s*"([^"]+)"/);
             const zone = zoneMatch ? zoneMatch[1].trim() : null;
-            if (zone) {
-                vendorZones[vendorId] = zone;
-            }
+            if (zone) vendorZones[vendorId] = zone;
 
             let priceFormatted = "";
             const priceTextMatch = content.match(/priceText\s*=\s*"([^"]+)"/);
@@ -283,166 +191,113 @@
             const amtMatch = content.match(/amount\s*=\s*(\d+)/);
             const moneyMatch = content.match(/money\s*=\s*(\d+)/);
 
-            if (priceTextMatch) {
-                priceFormatted = priceTextMatch[1].trim() + "g";
-            } else if (currMatch && amtMatch) {
+            if (priceTextMatch) priceFormatted = priceTextMatch[1].trim() + "g";
+            else if (currMatch && amtMatch) {
                 const cId = currMatch[1];
                 const cName = knownCurrencies[cId] || `Currency #${cId}`;
                 priceFormatted = `${amtMatch[1]} ${cName}`;
-            } else if (moneyMatch) {
-                priceFormatted = `${Math.floor(parseInt(moneyMatch[1]) / 10000)}g`;
-            }
+            } else if (moneyMatch) priceFormatted = `${Math.floor(parseInt(moneyMatch[1]) / 10000)}g`;
 
             let reqFormatted = "";
             const facMatch = content.match(/faction\s*=\s*"([^"]+)"/);
             const rankMatch = content.match(/rank\s*=\s*"?([^",}]+)"?/);
-            if (facMatch && rankMatch) {
-                reqFormatted = `${facMatch[1]} (${rankMatch[1]})`;
-            }
+            if (facMatch && rankMatch) reqFormatted = `${facMatch[1]} (${rankMatch[1]})`;
 
-            itemVendorDetails[itemId][vendorId] = {
-                zone: zone,
-                price: priceFormatted,
-                requirement: reqFormatted
-            };
+            itemVendorDetails[itemId][vendorId] = { zone, price: priceFormatted, requirement: reqFormatted };
         }
 
-        // 1. Parse GalleryVendorDetails.lua
+        // Parse Gallery
         if (galleryStr) {
             let currentRootItemId = null;
-            const galleryLines = galleryStr.split('\n');
-
-            for (let rawLine of galleryLines) {
+            for (let rawLine of galleryStr.split('\n')) {
                 const line = rawLine.trim();
                 if (!line || line.startsWith('--')) continue;
 
-                // Match single line items: [244349] = { [242399] = { ... } } or Gallery.VendorDetails[277921] = ...
-                const doubleMatch = line.match(/(?:Gallery\.VendorDetails\s*)?\[(\d+)\]\s*=\s*\{\s*\[(\d+)\]\s*=\s*\{([\s\S]+)\}/);
+                // Match single line (ignores nested brackets gracefully)
+                const doubleMatch = line.match(/\[(\d+)\]\s*=\s*\{\s*\[(\d+)\]\s*=\s*\{([\s\S]+)\}/);
                 if (doubleMatch) {
                     recordGalleryEntry(doubleMatch[1], doubleMatch[2], doubleMatch[3]);
                     continue;
                 }
-
-                // Match start of root multi-line item: [284223] = {
+                
+                // Match root item
                 const rootMatch = line.match(/^\[(\d+)\]\s*=\s*\{/);
-                if (rootMatch && !line.includes('displayZone') && !line.includes('price')) {
+                if (rootMatch && !line.includes('displayZone')) {
                     currentRootItemId = rootMatch[1];
                     continue;
                 }
 
-                // Match nested vendor row inside root block: [49877] = { ... }
+                // Match nested vendor
                 const nestedMatch = line.match(/^\[(\d+)\]\s*=\s*\{([\s\S]+)\}/);
                 if (nestedMatch && currentRootItemId) {
                     recordGalleryEntry(currentRootItemId, nestedMatch[1], nestedMatch[2]);
                     continue;
                 }
-
-                if (line.startsWith('},') || line === '}') {
-                    currentRootItemId = null;
-                }
+                if (line.startsWith('},') || line === '}') currentRootItemId = null;
             }
         }
 
-        // 2. Parse ActiveItems.lua
-        const activeLines = activeStr.split('\n');
+        // Parse Active Items
         let currentHeaderVendors = [];
         let currentSectionType = "vendor";
-
         decorDatabase = [];
 
-        for (let rawLine of activeLines) {
+        for (let rawLine of activeStr.split('\n')) {
             const line = rawLine.trim();
 
             if (line.includes("VENDOR NPC:")) {
                 currentHeaderVendors = [];
                 currentSectionType = "vendor";
-                const vendorPairs = [...line.matchAll(/(\d+)\s*\(([^)]+)\)/g)];
-                for (let vp of vendorPairs) {
-                    const vId = vp[1];
-                    const vName = vp[2].replace(/\s+\d+$/, '').trim(); 
-                    vendorNames[vId] = vName;
-                    currentHeaderVendors.push(vId);
+                for (let vp of line.matchAll(/(\d+)\s*\(([^)]+)\)/g)) {
+                    vendorNames[vp[1]] = vp[2].replace(/\s+\d+$/, '').trim(); 
+                    currentHeaderVendors.push(vp[1]);
                 }
-            } else if (line.includes("Cursed Keepsake Quests")) {
-                currentSectionType = "Cursed Keepsake Quest";
+                continue;
+            } else if (line.includes("Cursed Keepsake Quests") || line.includes("Daily Quest") || line.includes("quest")) {
+                currentSectionType = line.includes("Cursed") ? "Cursed Keepsake Quest" : "Quest";
                 currentHeaderVendors = [];
-            } else if (line.includes("Daily Quest") || line.includes("quest")) {
-                currentSectionType = "Quest";
-                currentHeaderVendors = [];
+                continue;
             }
 
-            const activeItemIdx = rawLine.indexOf("DVD.ActiveItems[");
-            if (activeItemIdx === -1) continue;
+            // Resilient regex to grab everything between { and } regardless of nesting, followed by the -- comment
+            const lineMatch = rawLine.match(/\[(\d+)\]\s*=\s*\{(.*)\}\s*--\s*(.*)/);
+            if (lineMatch) {
+                const itemId = lineMatch[1];
+                const itemBody = lineMatch[2];
+                let itemName = lineMatch[3].trim().split(" = ")[0].trim();
+                
+                const decorIdMatch = itemBody.match(/decorID\s*=\s*(\d+)/);
+                const sourceMatch = itemBody.match(/source\s*=\s*"([^"]+)"/);
+                const zoneMatch = itemBody.match(/zone\s*=\s*"([^"]+)"/);
+                const soldByMatch = itemBody.match(/soldBy\s*=\s*\{([^}]+)\}/);
 
-            const idMatch = rawLine.substring(activeItemIdx).match(/DVD\.ActiveItems\[(\d+)\]/);
-            if (!idMatch) continue;
-            const itemId = idMatch[1];
+                let associatedVendors = soldByMatch ? soldByMatch[1].split(',').map(s => s.trim()).filter(Boolean) : [...currentHeaderVendors];
 
-            // Extract item name from comment
-            const commentIdx = rawLine.indexOf("--", activeItemIdx);
-            let itemName = "";
-            if (commentIdx !== -1) {
-                itemName = rawLine.substring(commentIdx + 2).trim();
-                if (itemName.includes(" = ")) {
-                    itemName = itemName.split(" = ")[0].trim();
-                }
-            }
-            if (!itemName) continue;
-
-            // Extract table body by brace offsets rather than fragile regex
-            const firstBrace = rawLine.indexOf("{", activeItemIdx);
-            const lastBrace = commentIdx !== -1 
-                ? rawLine.lastIndexOf("}", commentIdx) 
-                : rawLine.lastIndexOf("}");
-            
-            const itemBody = (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace)
-                ? rawLine.substring(firstBrace + 1, lastBrace)
-                : "";
-
-            const decorIdMatch = itemBody.match(/decorID\s*=\s*(\d+)/);
-            const sourceMatch = itemBody.match(/source\s*=\s*"([^"]+)"/);
-            const zoneMatch = itemBody.match(/zone\s*=\s*"([^"]+)"/);
-            const soldByMatch = itemBody.match(/soldBy\s*=\s*\{([^}]+)\}/);
-
-            const decorId = decorIdMatch ? decorIdMatch[1] : null;
-            const source = sourceMatch ? sourceMatch[1] : currentSectionType;
-            const inherentZone = zoneMatch ? zoneMatch[1] : null;
-
-            let associatedVendors = [];
-            if (soldByMatch) {
-                associatedVendors = soldByMatch[1].split(',').map(s => s.trim()).filter(Boolean);
-            } else if (currentHeaderVendors.length > 0) {
-                associatedVendors = [...currentHeaderVendors];
-            }
-
-            if (associatedVendors.length > 0) {
-                for (let vId of associatedVendors) {
-                    const vName = vendorNames[vId] || `Vendor (${vId})`;
-                    const details = itemVendorDetails[itemId]?.[vId] || {};
-                    const zone = details.zone || vendorZones[vId] || inherentZone || "World";
-
+                if (associatedVendors.length > 0) {
+                    for (let vId of associatedVendors) {
+                        const details = itemVendorDetails[itemId]?.[vId] || {};
+                        decorDatabase.push({
+                            itemId,
+                            decorId: decorIdMatch ? decorIdMatch[1] : null,
+                            name: itemName,
+                            source: sourceMatch ? sourceMatch[1] : "vendor",
+                            vendorName: vendorNames[vId] || `Vendor (${vId})`,
+                            zone: details.zone || vendorZones[vId] || (zoneMatch ? zoneMatch[1] : "World"),
+                            price: details.price || "",
+                            requirement: details.requirement || ""
+                        });
+                    }
+                } else {
                     decorDatabase.push({
                         itemId,
-                        decorId,
+                        decorId: decorIdMatch ? decorIdMatch[1] : null,
                         name: itemName,
-                        source: source || "vendor",
-                        vendorName: vName,
-                        zone: zone,
-                        price: details.price || "",
-                        requirement: details.requirement || ""
+                        source: sourceMatch ? sourceMatch[1] : "Quest / World",
+                        vendorName: currentSectionType,
+                        zone: zoneMatch ? zoneMatch[1] : "Various Zones",
+                        price: "", requirement: ""
                     });
                 }
-            } else {
-                decorDatabase.push({
-                    itemId,
-                    decorId,
-                    name: itemName,
-                    source: source || "World / Quest",
-                    vendorName: currentSectionType || "World Drop / Quest",
-                    zone: inherentZone || "Various Zones",
-                    price: "",
-                    requirement: ""
-                });
             }
         }
     }
@@ -463,83 +318,56 @@
     }
 
     function runMatcher() {
-        const input = document.getElementById('itemListInput').value;
-        const resultsDiv = document.getElementById('results');
-
-        const searchLines = input.split('\n').map(s => s.trim()).filter(s => s.length > 0);
-        if (searchLines.length === 0) {
-            resultsDiv.innerHTML = "<p>Please enter at least one decor item name.</p>";
-            return;
-        }
+        const searchLines = document.getElementById('itemListInput').value.split('\n').map(s => s.trim()).filter(Boolean);
+        if (searchLines.length === 0) return;
 
         const vendorGroups = {};
         const unmatched = [];
 
         for (let rawLine of searchLines) {
-            // Normalize for matching only (remove prefixes like "45x " and parenthetical notes like "(dye)")
-            let cleanQuery = rawLine
-                .replace(/^\s*\d+\s*[xX*]\s*/, '')
-                .replace(/\s*\([^)]*\)\s*$/, '')
-                .trim();
-
+            // Strip leading bullet points, leading quantities (e.g. "45x "), and trailing parens (e.g. "(dye)")
+            let cleanQuery = rawLine.replace(/^[^a-zA-Z0-9]+/, '').replace(/^\d+\s*[xX*]\s*/i, '').replace(/\s*\([^)]*\)\s*$/, '').trim();
             const cleanLower = cleanQuery.toLowerCase();
             let match = null;
 
-            // 1. Direct ID lookup
             if (/^\d+$/.test(cleanQuery)) {
                 match = decorDatabase.filter(d => d.decorId === cleanQuery || d.itemId === cleanQuery);
             }
 
-            // 2. Exact match
             if (!match || match.length === 0) {
                 const exact = decorDatabase.filter(d => d.name.toLowerCase() === cleanLower);
-                if (exact.length > 0) {
-                    match = exact;
-                }
+                if (exact.length > 0) match = exact;
             }
 
-            // 3. Substring match
             if (!match || match.length === 0) {
-                const substr = decorDatabase.filter(d => 
-                    cleanLower.includes(d.name.toLowerCase()) || 
-                    (cleanLower.length > 3 && d.name.toLowerCase().includes(cleanLower))
-                );
+                const substr = decorDatabase.filter(d => cleanLower.includes(d.name.toLowerCase()) || (cleanLower.length > 3 && d.name.toLowerCase().includes(cleanLower)));
                 if (substr.length > 0) {
                     substr.sort((a, b) => b.name.length - a.name.length);
-                    const longest = substr[0].name.length;
-                    match = substr.filter(d => d.name.length === longest);
+                    match = substr.filter(d => d.name.length === substr[0].name.length);
                 }
             }
 
-            // 4. Fuzzy fallback
             if (!match || match.length === 0) {
-                let bestName = null;
-                let bestDist = Infinity;
+                let bestName = null, bestDist = Infinity;
                 for (let d of decorDatabase) {
                     const dist = getEditDistance(cleanLower, d.name.toLowerCase());
-                    if (dist < bestDist) {
-                        bestDist = dist;
-                        bestName = d.name;
-                    }
+                    if (dist < bestDist) { bestDist = dist; bestName = d.name; }
                 }
-                const maxAllowed = Math.max(2, Math.floor(cleanLower.length * 0.25));
-                if (bestName && bestDist <= maxAllowed) {
-                    match = decorDatabase.filter(d => d.name === bestName);
-                }
+                if (bestName && bestDist <= 4) match = decorDatabase.filter(d => d.name === bestName);
             }
 
             if (match && match.length > 0) {
                 for (let item of match) {
                     const groupKey = `${item.vendorName}:::${item.zone}`;
-                    if (!vendorGroups[groupKey]) {
-                        vendorGroups[groupKey] = { vendor: item.vendorName, zone: item.zone, items: [] };
-                    }
+                    if (!vendorGroups[groupKey]) vendorGroups[groupKey] = { vendor: item.vendorName, zone: item.zone, items: [] };
+                    
+                    // Prevent duplicate rendering if a vendor sells the same item multiple times internally
                     if (!vendorGroups[groupKey].items.some(i => i.rawInput === rawLine && i.name === item.name)) {
                         vendorGroups[groupKey].items.push({ ...item, rawInput: rawLine });
                     }
                 }
             } else {
-                unmatched.push(rawLine);
+                unmatched.push({ raw: rawLine, clean: cleanQuery });
             }
         }
 
@@ -549,10 +377,10 @@
     function renderOutput(groups, unmatched) {
         const resultsDiv = document.getElementById('results');
         let html = "";
-        const groupKeys = Object.keys(groups);
+        const groupKeys = Object.keys(groups).sort(); // Sort vendors alphabetically
 
         if (groupKeys.length === 0 && unmatched.length === 0) {
-            resultsDiv.innerHTML = "<p>No items found to process.</p>";
+            resultsDiv.innerHTML = "<p>No matching items found.</p>";
             return;
         }
 
@@ -591,7 +419,10 @@
                     </div>
                     <ul class="item-list">`;
             for (let u of unmatched) {
-                html += `<li class="item-row"><span style="color: var(--text-muted);">${escapeHtml(u)}</span></li>`;
+                html += `<li class="item-row">
+                            <span style="color: var(--text-muted);">${escapeHtml(u.raw)}</span>
+                            <span class="search-term-debug">(Searched DB for: "${escapeHtml(u.clean)}")</span>
+                         </li>`;
             }
             html += `</ul></div>`;
         }
