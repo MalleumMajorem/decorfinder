@@ -379,8 +379,8 @@
         for (let key of groupKeys) {
             const grp = groups[key];
             
-            // Sort items alphabetically by their actual database name
-            grp.items.sort((a, b) => a.name.localeCompare(b.name));
+            // Sort items alphabetically by their actual database name, completely ignoring the quantities in the raw string
+            grp.items.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()));
 
             html += `
                 <div class="vendor-card">
