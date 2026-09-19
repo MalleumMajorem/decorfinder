@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WoW Decor Source Matcher</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2 { color: #569cd6; }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .full-width { grid-column: span 2; }
+        textarea {
+            width: 100%;
+            height: 150px;
+            background-color: #2d2d2d;
+            color: #d4d4d4;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: Consolas, monospace;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        #searchList { height: 200px; font-size: 14px; }
+        button {
+            background-color: #0e639c;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            width: 100%;
+        }
+        button:hover { background-color: #1177bb; }
+        .results { margin-top: 30px; }
+        .vendor-group {
+            background-color: #252526;
+            border: 1px solid #333;
+            border-left: 4px solid #c586c0;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+        }
+        .vendor-header {
+            font-size: 1.2em;
+            color: #ce9178;
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 8px;
+        }
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px dashed #333;
+        }
+        .item-row:last-child { border-bottom: none; }
+        .item-name { color: #9cdcfe; font-weight: bold; }
+        .item-source { color: #6a9955; font-size: 0.9em; text-transform: capitalize; }
+        .unmatched-group { border-left-color: #f44336; }
+        .unmatched-group .vendor-header { color: #f44336; }
+    </style>
+</head>
+<body>
+
+    <h1>WoW Decor Source Matcher</h1>
+    
+    <div class="grid">
+        <div>
+            <label for="activeItems"><strong>ActiveItems.lua Content</strong></label>
+            <textarea id="activeItems" placeholder="Paste ActiveItems.lua here..."></textarea>
+        </div>
+        <div>
+            <label for="galleryDetails"><strong>GalleryVendorDetails.lua Content</strong></label>
+            <textarea id="galleryDetails" placeholder="Paste GalleryVendorDetails.lua here..."></textarea>
+        </div>
+        <div class="full-width">
+            <label for="searchList"><strong>Decor Items to Find (One per line)</strong></label>
+            <textarea id="searchList" placeholder="Kharanos Stone Bed&#10;Nesingwary Mounted Elk Head&#10;Shadowforge Wooden Box"></textarea>
+        </div>
+    </div>
+
+    <button onclick="processMatch()">Match Decor</button>
+
+    <div id="results" class="results"></div>
+
+    <script>
+        // Levenshtein distance for fuzzy matching
+        function getEditDistance(a, b) {
+            if (a.length === 0) return b.length;
+            if (b.length === 0) return a.length;
+            const matrix = Array.from(Array(b.length + 1), () => Array(a.length + 1).fill(0));
+            for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+            for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+            for (let j = 1; j <= b.length; j++) {
+                for (let i = 1; i <= a.length; i++) {
+                    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                    matrix[j][i] = Math.min(
+                        matrix[j][i - 1] + 1,
+                        matrix[j - 1][i] + 1,
+                        matrix[j - 1][i - 1] + cost
+                    );
+                }
+            }
+            return matrix[b.length][a.length];
+        }
+
+        function parseDatabases(activeStr, galleryStr) {
+            const db = [];
+            const activeLines = activeStr.split('\n');
+            let currentVendor = "Unknown Vendor";
+
+            // 1. Parse ActiveItems.lua sequentially
+            for (let line of activeLines) {
+                // Update current vendor block context
+                const vendorMatch = line.match(/VENDOR NPC:.*?\(([^)]+)\)/);
+                if (vendorMatch) {
+                    currentVendor = vendorMatch[1].trim();
+                }
+
+                // Extract item details
+                const itemMatch = line.match(/DVD\.ActiveItems\[(\d+)\]\s*=\s*\{.*?source\s*=\s*"([^"]+)".*?\}\s*--\s*(.*)/);
+                if (itemMatch) {
+                    db.push({
+                        id: itemMatch[1],
+                        source: itemMatch[2],
+                        name: itemMatch[3].trim(),
+                        vendorName: currentVendor,
+                        zone: "Unknown Zone"
+                    });
+                }
+            }
+
+            // 2. Parse GalleryVendorDetails.lua to append zone data
+            const galleryLines = galleryStr.split('\n');
+            let currentGalleryId = null;
+
+            for (let line of galleryLines) {
+                // Match root item IDs: [244349] = {
+                const idMatch = line.match(/^\[(\d+)\]\s*=\s*\{/);
+                if (idMatch) currentGalleryId = idMatch[1];
+
+                // Check for single-line structures: [244349] = { [242399] = { ... displayZone = "Silvermoon City" } }
+                const inlineMatch = line.match(/^\[(\d+)\]\s*=\s*\{.*displayZone\s*=\s*"([^"]+)"/);
+                if (inlineMatch) {
+                    const item = db.find(x => x.id === inlineMatch[1]);
+                    if (item) item.zone = inlineMatch[2].trim();
+                    continue;
+                }
+
+                // Check for multi-line displayZone properties within a root block
+                const zoneMatch = line.match(/displayZone\s*=\s*"([^"]+)"/);
+                if (zoneMatch && currentGalleryId) {
+                    const item = db.find(x => x.id === currentGalleryId);
+                    if (item) item.zone = zoneMatch[1].trim();
+                }
+            }
+            return db;
+        }
+
+        function processMatch() {
+            const activeText = document.getElementById('activeItems').value;
+            const galleryText = document.getElementById('galleryDetails').value;
+            const searchInput = document.getElementById('searchList').value;
+            const resultsDiv = document.getElementById('results');
+            
+            if (!activeText || !searchInput) {
+                resultsDiv.innerHTML = "<p style='color: #f44336;'>Please provide ActiveItems data and a search list.</p>";
+                return;
+            }
+
+            const db = parseDatabases(activeText, galleryText);
+            const searchLines = searchInput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            
+            const groups = {};
+            const unmatched = [];
+
+            // 3. Perform matching
+            for (let query of searchLines) {
+                const queryLower = query.toLowerCase();
+                let bestMatch = null;
+                let bestDist = Infinity;
+
+                for (let item of db) {
+                    const itemNameLower = item.name.toLowerCase();
+                    
+                    // Exact or strong substring match bypasses Levenshtein
+                    if (itemNameLower === queryLower || itemNameLower.includes(queryLower) && queryLower.length > 5) {
+                        bestMatch = item;
+                        break;
+                    }
+
+                    const dist = getEditDistance(queryLower, itemNameLower);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestMatch = item;
+                    }
+                }
+
+                // Threshold of 5 characters for typos
+                if (bestMatch && (bestDist <= 5 || bestMatch.name.toLowerCase().includes(queryLower))) {
+                    const groupKey = `${bestMatch.vendorName} — ${bestMatch.zone}`;
+                    if (!groups[groupKey]) groups[groupKey] = [];
+                    groups[groupKey].push(bestMatch);
+                } else {
+                    unmatched.push(query);
+                }
+            }
+
+            // 4. Render output
+            let html = "";
+            for (const [groupName, items] of Object.entries(groups)) {
+                html += `<div class="vendor-group">
+                            <h3 class="vendor-header">${groupName}</h3>`;
+                for (let item of items) {
+                    html += `<div class="item-row">
+                                <span class="item-name">${item.name}</span>
+                                <span class="item-source">${item.source} (ID: ${item.id})</span>
+                             </div>`;
+                }
+                html += `</div>`;
+            }
+
+            if (unmatched.length > 0) {
+                html += `<div class="vendor-group unmatched-group">
+                            <h3 class="vendor-header">Unmatched / Not Found</h3>`;
+                for (let query of unmatched) {
+                    html += `<div class="item-row">
+                                <span class="item-name" style="color: #ccc;">${query}</span>
+                             </div>`;
+                }
+                html += `</div>`;
+            }
+
+            if(Object.keys(groups).length === 0 && unmatched.length === 0) {
+                html = "<p>No items found to process.</p>";
+            }
+
+            resultsDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
