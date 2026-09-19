@@ -3,255 +3,598 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WoW Decor Source Matcher</title>
+    <title>WoW Housing Decor Sourcing Tool</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #1e1e1e;
-            color: #d4d4d4;
-            margin: 0;
-            padding: 20px;
+        :root {
+            --bg-color: #121417;
+            --panel-bg: #1b1e24;
+            --border-color: #2e3440;
+            --accent-color: #dca842;
+            --text-main: #e5e9f0;
+            --text-muted: #9aa5b5;
+            --badge-bg: #2a313d;
         }
-        h1, h2 { color: #569cd6; }
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 24px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        header {
             margin-bottom: 20px;
         }
-        .full-width { grid-column: span 2; }
+
+        h1 {
+            color: var(--accent-color);
+            margin: 0 0 8px 0;
+            font-size: 1.8rem;
+        }
+
+        .status-bar {
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-loading { background: #2c2514; color: #f0c674; border: 1px solid #634f24; }
+        .status-success { background: #18281e; color: #81c784; border: 1px solid #2e5339; }
+        .status-error { background: #2d1818; color: #e57373; border: 1px solid #5a2c2c; }
+
         textarea {
             width: 100%;
-            height: 150px;
-            background-color: #2d2d2d;
-            color: #d4d4d4;
-            border: 1px solid #444;
-            border-radius: 4px;
-            padding: 10px;
-            font-family: Consolas, monospace;
+            height: 160px;
+            background-color: var(--panel-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 0.95rem;
             box-sizing: border-box;
             resize: vertical;
         }
-        #searchList { height: 200px; font-size: 14px; }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
         button {
-            background-color: #0e639c;
-            color: white;
+            background-color: var(--accent-color);
+            color: #121417;
             border: none;
-            padding: 12px 24px;
-            font-size: 16px;
+            padding: 12px 20px;
+            font-size: 1rem;
+            font-weight: 700;
+            border-radius: 6px;
             cursor: pointer;
-            border-radius: 4px;
-            font-weight: bold;
             width: 100%;
+            margin-top: 10px;
+            transition: opacity 0.15s ease;
         }
-        button:hover { background-color: #1177bb; }
-        .results { margin-top: 30px; }
-        .vendor-group {
-            background-color: #252526;
-            border: 1px solid #333;
-            border-left: 4px solid #c586c0;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 4px;
+
+        button:hover {
+            opacity: 0.9;
         }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .results-container {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .vendor-card {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
         .vendor-header {
-            font-size: 1.2em;
-            color: #ce9178;
-            margin-top: 0;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #333;
-            padding-bottom: 8px;
-        }
-        .item-row {
+            background-color: rgba(220, 168, 66, 0.08);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px dashed #333;
+            align-items: center;
         }
-        .item-row:last-child { border-bottom: none; }
-        .item-name { color: #9cdcfe; font-weight: bold; }
-        .item-source { color: #6a9955; font-size: 0.9em; text-transform: capitalize; }
-        .unmatched-group { border-left-color: #f44336; }
-        .unmatched-group .vendor-header { color: #f44336; }
+
+        .vendor-name {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .vendor-zone {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            background-color: var(--badge-bg);
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+
+        .item-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .item-row {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-row:last-child {
+            border-bottom: none;
+        }
+
+        .item-title {
+            font-weight: 600;
+            color: #cbe3f7;
+        }
+
+        .item-meta {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 0.85rem;
+        }
+
+        .meta-tag {
+            background-color: var(--badge-bg);
+            padding: 3px 8px;
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        .meta-price {
+            color: #ffd700;
+            font-weight: 600;
+        }
+
+        .unmatched-card {
+            border-color: #5a2c2c;
+        }
+
+        .unmatched-card .vendor-header {
+            background-color: rgba(229, 115, 115, 0.1);
+        }
+
+        .unmatched-card .vendor-name {
+            color: #e57373;
+        }
+
+        details {
+            margin-top: 15px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        details summary {
+            cursor: pointer;
+        }
+
+        .fallback-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .fallback-inputs textarea {
+            height: 90px;
+            font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
 
-    <h1>WoW Decor Source Matcher</h1>
-    
-    <div class="grid">
-        <div>
-            <label for="activeItems"><strong>ActiveItems.lua Content</strong></label>
-            <textarea id="activeItems" placeholder="Paste ActiveItems.lua here..."></textarea>
+<div class="container">
+    <header>
+        <h1>WoW Decor Sourcing Assistant</h1>
+        <div id="statusBar" class="status-bar status-loading">
+            <span id="statusText">Attempting to read ActiveItems.lua and GalleryVendorDetails.lua...</span>
         </div>
-        <div>
-            <label for="galleryDetails"><strong>GalleryVendorDetails.lua Content</strong></label>
-            <textarea id="galleryDetails" placeholder="Paste GalleryVendorDetails.lua here..."></textarea>
+    </header>
+
+    <label for="itemListInput"><strong>Paste List of Decor Items (or IDs), one per line:</strong></label>
+    <textarea id="itemListInput" placeholder="45x Runed Stone Placard&#10;7x Three-Candle Wrought Iron Chandelier&#10;1x Elwynn Autumn Apple Tree&#10;15x Orange Housing Dye (dye)"></textarea>
+
+    <button id="matchBtn" onclick="runMatcher()" disabled>Find Sources & Group Vendors</button>
+
+    <details>
+        <summary>Manual File Paste Fallback (Click if viewing locally outside a web server)</summary>
+        <div class="fallback-inputs">
+            <div>
+                <label>ActiveItems.lua:</label>
+                <textarea id="manualActive" placeholder="Paste ActiveItems.lua contents here..."></textarea>
+            </div>
+            <div>
+                <label>GalleryVendorDetails.lua:</label>
+                <textarea id="manualGallery" placeholder="Paste GalleryVendorDetails.lua contents here..."></textarea>
+            </div>
         </div>
-        <div class="full-width">
-            <label for="searchList"><strong>Decor Items to Find (One per line)</strong></label>
-            <textarea id="searchList" placeholder="Kharanos Stone Bed&#10;Nesingwary Mounted Elk Head&#10;Shadowforge Wooden Box"></textarea>
-        </div>
-    </div>
+        <button onclick="parseFromManualInput()" style="margin-top: 8px;">Parse Pasted Files</button>
+    </details>
 
-    <button onclick="processMatch()">Match Decor</button>
+    <div id="results" class="results-container"></div>
+</div>
 
-    <div id="results" class="results"></div>
+<script>
+    let decorDatabase = [];
+    const knownCurrencies = {
+        823: "Apexis Crystals",
+        824: "Garrison Resources",
+        1155: "Ancient Mana",
+        1220: "Order Resources",
+        1508: "Sightless Eyes",
+        1560: "War Resources",
+        1792: "Honor",
+        1813: "Reservoir Anima",
+        2003: "Dragon Isles Supplies",
+        2815: "Resonance Crystals",
+        3316: "Resonating Bravery",
+        3363: "Artisan Tokens",
+        37829: "Brewfest Tokens"
+    };
 
-    <script>
-        // Levenshtein distance for fuzzy matching
-        function getEditDistance(a, b) {
-            if (a.length === 0) return b.length;
-            if (b.length === 0) return a.length;
-            const matrix = Array.from(Array(b.length + 1), () => Array(a.length + 1).fill(0));
-            for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
-            for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
-            for (let j = 1; j <= b.length; j++) {
-                for (let i = 1; i <= a.length; i++) {
-                    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-                    matrix[j][i] = Math.min(
-                        matrix[j][i - 1] + 1,
-                        matrix[j - 1][i] + 1,
-                        matrix[j - 1][i - 1] + cost
-                    );
-                }
+    // Auto-fetch files on load
+    window.addEventListener('DOMContentLoaded', async () => {
+        const statusBar = document.getElementById('statusBar');
+        const statusText = document.getElementById('statusText');
+        const matchBtn = document.getElementById('matchBtn');
+
+        try {
+            const [activeRes, galleryRes] = await Promise.all([
+                fetch('./ActiveItems.lua'),
+                fetch('./GalleryVendorDetails.lua')
+            ]);
+
+            if (!activeRes.ok || !galleryRes.ok) {
+                throw new Error("HTTP " + activeRes.status + " / " + galleryRes.status);
             }
-            return matrix[b.length][a.length];
+
+            const activeText = await activeRes.text();
+            const galleryText = await galleryRes.text();
+
+            buildDatabase(activeText, galleryText);
+
+            statusBar.className = "status-bar status-success";
+            statusText.textContent = `✓ Successfully loaded database (${decorDatabase.length} decor entries indexed).`;
+            matchBtn.disabled = false;
+        } catch (err) {
+            statusBar.className = "status-bar status-error";
+            statusText.textContent = `Could not auto-fetch .lua files. If running locally via file://, use the manual paste section below.`;
         }
+    });
 
-        function parseDatabases(activeStr, galleryStr) {
-            const db = [];
-            const activeLines = activeStr.split('\n');
-            let currentVendor = "Unknown Vendor";
+    function parseFromManualInput() {
+        const activeText = document.getElementById('manualActive').value;
+        const galleryText = document.getElementById('manualGallery').value;
+        if (!activeText) return;
+        buildDatabase(activeText, galleryText);
+        document.getElementById('matchBtn').disabled = false;
+        document.getElementById('statusBar').className = "status-bar status-success";
+        document.getElementById('statusText').textContent = `✓ Successfully parsed manual data (${decorDatabase.length} decor entries).`;
+    }
 
-            // 1. Parse ActiveItems.lua sequentially
-            for (let line of activeLines) {
-                // Update current vendor block context
-                const vendorMatch = line.match(/VENDOR NPC:.*?\(([^)]+)\)/);
-                if (vendorMatch) {
-                    currentVendor = vendorMatch[1].trim();
-                }
+    function buildDatabase(activeStr, galleryStr) {
+        const vendorNames = {};
+        const vendorZones = {};
+        const itemVendorDetails = {};
 
-                // Extract item details
-                const itemMatch = line.match(/DVD\.ActiveItems\[(\d+)\]\s*=\s*\{.*?source\s*=\s*"([^"]+)".*?\}\s*--\s*(.*)/);
-                if (itemMatch) {
-                    db.push({
-                        id: itemMatch[1],
-                        source: itemMatch[2],
-                        name: itemMatch[3].trim(),
-                        vendorName: currentVendor,
-                        zone: "Unknown Zone"
-                    });
-                }
-            }
-
-            // 2. Parse GalleryVendorDetails.lua to append zone data
+        // 1. Extract Vendor Details & Zones from GalleryVendorDetails.lua
+        if (galleryStr) {
+            let currentRootItemId = null;
             const galleryLines = galleryStr.split('\n');
-            let currentGalleryId = null;
 
-            for (let line of galleryLines) {
-                // Match root item IDs: [244349] = {
-                const idMatch = line.match(/^\[(\d+)\]\s*=\s*\{/);
-                if (idMatch) currentGalleryId = idMatch[1];
+            for (let rawLine of galleryLines) {
+                const line = rawLine.trim();
+                if (!line || line.startsWith('--')) continue;
 
-                // Check for single-line structures: [244349] = { [242399] = { ... displayZone = "Silvermoon City" } }
-                const inlineMatch = line.match(/^\[(\d+)\]\s*=\s*\{.*displayZone\s*=\s*"([^"]+)"/);
-                if (inlineMatch) {
-                    const item = db.find(x => x.id === inlineMatch[1]);
-                    if (item) item.zone = inlineMatch[2].trim();
+                // Single line: Gallery.VendorDetails[277921] = { [257598] = { ... displayZone = "..." } }
+                let singleLine = line.match(/Gallery\.VendorDetails\[(\d+)\]\s*=\s*\{\s*\[(\d+)\]\s*=\s*\{([^}]+)\}/);
+                if (!singleLine) {
+                    singleLine = line.match(/^\[(\d+)\]\s*=\s*\{\s*\[(\d+)\]\s*=\s*\{([^}]+)\}/);
+                }
+                if (singleLine) {
+                    recordGalleryEntry(singleLine[1], singleLine[2], singleLine[3]);
                     continue;
                 }
 
-                // Check for multi-line displayZone properties within a root block
-                const zoneMatch = line.match(/displayZone\s*=\s*"([^"]+)"/);
-                if (zoneMatch && currentGalleryId) {
-                    const item = db.find(x => x.id === currentGalleryId);
-                    if (item) item.zone = zoneMatch[1].trim();
+                // Root item ID declaration: [284223] = {
+                const rootMatch = line.match(/^\[(\d+)\]\s*=\s*\{/);
+                if (rootMatch) {
+                    currentRootItemId = rootMatch[1];
+                    continue;
+                }
+
+                // Nested vendor line: [49877] = { ... displayZone = "..." }
+                const nestedMatch = line.match(/^\[(\d+)\]\s*=\s*\{([^}]+)\}/);
+                if (nestedMatch && currentRootItemId) {
+                    recordGalleryEntry(currentRootItemId, nestedMatch[1], nestedMatch[2]);
+                    continue;
+                }
+
+                if (line.startsWith('},') || line.startsWith('}')) {
+                    currentRootItemId = null;
                 }
             }
-            return db;
         }
 
-        function processMatch() {
-            const activeText = document.getElementById('activeItems').value;
-            const galleryText = document.getElementById('galleryDetails').value;
-            const searchInput = document.getElementById('searchList').value;
-            const resultsDiv = document.getElementById('results');
-            
-            if (!activeText || !searchInput) {
-                resultsDiv.innerHTML = "<p style='color: #f44336;'>Please provide ActiveItems data and a search list.</p>";
-                return;
+        function recordGalleryEntry(itemId, vendorId, content) {
+            if (!itemVendorDetails[itemId]) itemVendorDetails[itemId] = {};
+
+            const zoneMatch = content.match(/displayZone\s*=\s*"([^"]+)"/);
+            const zone = zoneMatch ? zoneMatch[1].trim() : null;
+
+            if (zone) {
+                vendorZones[vendorId] = zone;
             }
 
-            const db = parseDatabases(activeText, galleryText);
-            const searchLines = searchInput.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            
-            const groups = {};
-            const unmatched = [];
+            // Price formatting
+            let priceFormatted = "";
+            const priceTextMatch = content.match(/priceText\s*=\s*"([^"]+)"/);
+            const currMatch = content.match(/currencyID\s*=\s*(\d+)/);
+            const amtMatch = content.match(/amount\s*=\s*(\d+)/);
+            const moneyMatch = content.match(/money\s*=\s*(\d+)/);
 
-            // 3. Perform matching
-            for (let query of searchLines) {
-                const queryLower = query.toLowerCase();
-                let bestMatch = null;
-                let bestDist = Infinity;
+            if (priceTextMatch) {
+                priceFormatted = priceTextMatch[1].trim() + "g";
+            } else if (currMatch && amtMatch) {
+                const cId = currMatch[1];
+                const cName = knownCurrencies[cId] || `Currency #${cId}`;
+                priceFormatted = `${amtMatch[1]} ${cName}`;
+            } else if (moneyMatch) {
+                priceFormatted = `${Math.floor(parseInt(moneyMatch[1]) / 10000)}g`;
+            }
 
-                for (let item of db) {
-                    const itemNameLower = item.name.toLowerCase();
-                    
-                    // Exact or strong substring match bypasses Levenshtein
-                    if (itemNameLower === queryLower || itemNameLower.includes(queryLower) && queryLower.length > 5) {
-                        bestMatch = item;
-                        break;
+            // Requirements
+            let reqFormatted = "";
+            const facMatch = content.match(/faction\s*=\s*"([^"]+)"/);
+            const rankMatch = content.match(/rank\s*=\s*"?([^",}]+)"?/);
+            if (facMatch && rankMatch) {
+                reqFormatted = `${facMatch[1]} (${rankMatch[1]})`;
+            }
+
+            itemVendorDetails[itemId][vendorId] = {
+                zone: zone,
+                price: priceFormatted,
+                requirement: reqFormatted
+            };
+        }
+
+        // 2. Parse ActiveItems.lua
+        const activeLines = activeStr.split('\n');
+        let currentHeaderVendors = [];
+        let currentSectionType = "";
+
+        decorDatabase = [];
+
+        for (let rawLine of activeLines) {
+            const line = rawLine.trim();
+
+            if (line.includes("VENDOR NPC:")) {
+                currentHeaderVendors = [];
+                currentSectionType = "vendor";
+                const vendorPairs = [...line.matchAll(/(\d+)\s*\(([^)]+)\)/g)];
+                for (let vp of vendorPairs) {
+                    const vId = vp[1];
+                    const vName = vp[2].replace(/\s+\d+$/, '').trim(); 
+                    vendorNames[vId] = vName;
+                    currentHeaderVendors.push(vId);
+                }
+            } else if (line.includes("Cursed Keepsake Quests")) {
+                currentSectionType = "Cursed Keepsake Quest";
+                currentHeaderVendors = [];
+            } else if (line.includes("Daily Quest") || line.includes("quest")) {
+                currentSectionType = "Quest";
+            }
+
+            const itemMatch = rawLine.match(/DVD\.ActiveItems\[(\d+)\]\s*=\s*\{([^}]+)\}\s*--\s*(.*)/);
+            if (itemMatch) {
+                const itemId = itemMatch[1];
+                const itemBody = itemMatch[2];
+                let itemName = itemMatch[3].trim();
+                
+                if (itemName.includes(" = ")) itemName = itemName.split(" = ")[0].trim();
+
+                const decorIdMatch = itemBody.match(/decorID\s*=\s*(\d+)/);
+                const sourceMatch = itemBody.match(/source\s*=\s*"([^"]+)"/);
+                const zoneMatch = itemBody.match(/zone\s*=\s*"([^"]+)"/);
+                const soldByMatch = itemBody.match(/soldBy\s*=\s*\{([^}]+)\}/);
+
+                const decorId = decorIdMatch ? decorIdMatch[1] : null;
+                const source = sourceMatch ? sourceMatch[1] : currentSectionType;
+                const inherentZone = zoneMatch ? zoneMatch[1] : null;
+
+                let associatedVendors = [];
+                if (soldByMatch) {
+                    associatedVendors = soldByMatch[1].split(',').map(s => s.trim());
+                } else if (currentHeaderVendors.length > 0) {
+                    associatedVendors = [...currentHeaderVendors];
+                }
+
+                if (associatedVendors.length > 0) {
+                    for (let vId of associatedVendors) {
+                        const vName = vendorNames[vId] || `Vendor (${vId})`;
+                        const details = itemVendorDetails[itemId]?.[vId] || {};
+                        const zone = details.zone || vendorZones[vId] || inherentZone || "World";
+
+                        decorDatabase.push({
+                            itemId, decorId, name: itemName, source, vendorName: vName, zone: zone,
+                            price: details.price || "", requirement: details.requirement || ""
+                        });
                     }
+                } else {
+                    decorDatabase.push({
+                        itemId, decorId, name: itemName, source: source || "World / Quest",
+                        vendorName: currentSectionType || "World Drop / Quest", zone: inherentZone || "Various Zones",
+                        price: "", requirement: ""
+                    });
+                }
+            }
+        }
+    }
 
+    function getEditDistance(a, b) {
+        if (a.length === 0) return b.length;
+        if (b.length === 0) return a.length;
+        const matrix = Array.from(Array(b.length + 1), () => Array(a.length + 1).fill(0));
+        for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+        for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+        for (let j = 1; j <= b.length; j++) {
+            for (let i = 1; i <= a.length; i++) {
+                const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                matrix[j][i] = Math.min(matrix[j][i - 1] + 1, matrix[j - 1][i] + 1, matrix[j - 1][i - 1] + cost);
+            }
+        }
+        return matrix[b.length][a.length];
+    }
+
+    function runMatcher() {
+        const input = document.getElementById('itemListInput').value;
+        const resultsDiv = document.getElementById('results');
+
+        const searchQueries = input.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+        if (searchQueries.length === 0) {
+            resultsDiv.innerHTML = "<p>Please enter at least one decor name or ID.</p>";
+            return;
+        }
+
+        const vendorGroups = {};
+        const unmatched = [];
+
+        for (let query of searchQueries) {
+            const queryLower = query.toLowerCase();
+            let match = null;
+
+            // 1. Direct ID lookup
+            if (/^\d+$/.test(query)) {
+                match = decorDatabase.filter(d => d.decorId === query || d.itemId === query);
+            }
+
+            // 2. Substring matching (handles quantity prefixes and label suffixes natively)
+            if (!match || match.length === 0) {
+                const substringMatches = decorDatabase.filter(d => d.name.length > 3 && queryLower.includes(d.name.toLowerCase()));
+                if (substringMatches.length > 0) {
+                    substringMatches.sort((a, b) => b.name.length - a.name.length);
+                    const longestLength = substringMatches[0].name.length;
+                    match = substringMatches.filter(d => d.name.length === longestLength);
+                }
+            }
+
+            // 3. Fallback: Fuzzy matching for minor typos
+            if (!match || match.length === 0) {
+                let bestMatchName = null;
+                let bestDist = Infinity;
+                for (let item of decorDatabase) {
+                    const itemNameLower = item.name.toLowerCase();
                     const dist = getEditDistance(queryLower, itemNameLower);
                     if (dist < bestDist) {
                         bestDist = dist;
-                        bestMatch = item;
+                        bestMatchName = item.name;
                     }
                 }
-
-                // Threshold of 5 characters for typos
-                if (bestMatch && (bestDist <= 5 || bestMatch.name.toLowerCase().includes(queryLower))) {
-                    const groupKey = `${bestMatch.vendorName} — ${bestMatch.zone}`;
-                    if (!groups[groupKey]) groups[groupKey] = [];
-                    groups[groupKey].push(bestMatch);
-                } else {
-                    unmatched.push(query);
+                if (bestMatchName && bestDist <= 5) {
+                    match = decorDatabase.filter(d => d.name === bestMatchName);
                 }
             }
 
-            // 4. Render output
-            let html = "";
-            for (const [groupName, items] of Object.entries(groups)) {
-                html += `<div class="vendor-group">
-                            <h3 class="vendor-header">${groupName}</h3>`;
-                for (let item of items) {
-                    html += `<div class="item-row">
-                                <span class="item-name">${item.name}</span>
-                                <span class="item-source">${item.source} (ID: ${item.id})</span>
-                             </div>`;
+            if (match && match.length > 0) {
+                for (let item of match) {
+                    const groupKey = `${item.vendorName}:::${item.zone}`;
+                    if (!vendorGroups[groupKey]) {
+                        vendorGroups[groupKey] = { vendor: item.vendorName, zone: item.zone, items: [] };
+                    }
+                    if (!vendorGroups[groupKey].items.some(i => i.rawInput === query && i.name === item.name)) {
+                        vendorGroups[groupKey].items.push({...item, rawInput: query});
+                    }
                 }
-                html += `</div>`;
+            } else {
+                unmatched.push(query);
             }
-
-            if (unmatched.length > 0) {
-                html += `<div class="vendor-group unmatched-group">
-                            <h3 class="vendor-header">Unmatched / Not Found</h3>`;
-                for (let query of unmatched) {
-                    html += `<div class="item-row">
-                                <span class="item-name" style="color: #ccc;">${query}</span>
-                             </div>`;
-                }
-                html += `</div>`;
-            }
-
-            if(Object.keys(groups).length === 0 && unmatched.length === 0) {
-                html = "<p>No items found to process.</p>";
-            }
-
-            resultsDiv.innerHTML = html;
         }
-    </script>
+
+        renderOutput(vendorGroups, unmatched);
+    }
+
+    function renderOutput(groups, unmatched) {
+        const resultsDiv = document.getElementById('results');
+        let html = "";
+        const groupKeys = Object.keys(groups);
+
+        if (groupKeys.length === 0 && unmatched.length === 0) {
+            resultsDiv.innerHTML = "<p>No matching items found.</p>";
+            return;
+        }
+
+        for (let key of groupKeys) {
+            const grp = groups[key];
+            html += `
+                <div class="vendor-card">
+                    <div class="vendor-header">
+                        <span class="vendor-name">${grp.vendor}</span>
+                        <span class="vendor-zone">📍 ${grp.zone}</span>
+                    </div>
+                    <ul class="item-list">`;
+
+            for (let itm of grp.items) {
+                html += `
+                    <li class="item-row">
+                        <div>
+                            <div class="item-title">${itm.rawInput}</div>
+                            ${itm.requirement ? `<span class="meta-tag" style="color: #f0c674;">Req: ${itm.requirement}</span>` : ''}
+                        </div>
+                        <div class="item-meta">
+                            ${itm.price ? `<span class="meta-price">${itm.price}</span>` : ''}
+                            <span class="meta-tag" style="text-transform: capitalize;">${itm.source}</span>
+                        </div>
+                    </li>`;
+            }
+            html += `</ul></div>`;
+        }
+
+        if (unmatched.length > 0) {
+            html += `
+                <div class="vendor-card unmatched-card">
+                    <div class="vendor-header">
+                        <span class="vendor-name">Not Found / Unmatched Items</span>
+                        <span class="vendor-zone">${unmatched.length} Item(s)</span>
+                    </div>
+                    <ul class="item-list">`;
+            for (let u of unmatched) {
+                html += `<li class="item-row"><span style="color: var(--text-muted);">${u}</span></li>`;
+            }
+            html += `</ul></div>`;
+        }
+        resultsDiv.innerHTML = html;
+    }
+</script>
+
 </body>
 </html>
