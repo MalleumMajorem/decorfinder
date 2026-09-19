@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WoW Decor Sourcing Assistant</title>
+    <title>WoW Housing Decor Sourcing Tool</title>
     <style>
         :root {
             --bg-color: #121417;
@@ -16,7 +16,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
@@ -136,7 +136,6 @@
         const matchBtn = document.getElementById('matchBtn');
 
         try {
-            // Append timestamp to force GitHub Pages to bypass the 10-minute cache
             const cacheBuster = '?v=' + Date.now();
             const [activeRes, galleryRes] = await Promise.all([
                 fetch('./ActiveItems.lua' + cacheBuster),
@@ -160,8 +159,6 @@
             statusText.textContent = `✓ Successfully loaded database (${decorDatabase.length} decor sources mapped).`;
             matchBtn.disabled = false;
             
-            // Console logging for easy debugging
-            console.log(`[Decor Tool] Database ready! Mapped ${decorDatabase.length} item sources.`);
         } catch (err) {
             statusBar.className = "status-bar status-error";
             statusText.textContent = `Error: ${err.message}`;
@@ -206,28 +203,24 @@
             itemVendorDetails[itemId][vendorId] = { zone, price: priceFormatted, requirement: reqFormatted };
         }
 
-        // Parse Gallery
         if (galleryStr) {
             let currentRootItemId = null;
             for (let rawLine of galleryStr.split('\n')) {
                 const line = rawLine.trim();
                 if (!line || line.startsWith('--')) continue;
 
-                // Match single line (ignores nested brackets gracefully)
                 const doubleMatch = line.match(/\[(\d+)\]\s*=\s*\{\s*\[(\d+)\]\s*=\s*\{([\s\S]+)\}/);
                 if (doubleMatch) {
                     recordGalleryEntry(doubleMatch[1], doubleMatch[2], doubleMatch[3]);
                     continue;
                 }
                 
-                // Match root item
                 const rootMatch = line.match(/^\[(\d+)\]\s*=\s*\{/);
                 if (rootMatch && !line.includes('displayZone')) {
                     currentRootItemId = rootMatch[1];
                     continue;
                 }
 
-                // Match nested vendor
                 const nestedMatch = line.match(/^\[(\d+)\]\s*=\s*\{([\s\S]+)\}/);
                 if (nestedMatch && currentRootItemId) {
                     recordGalleryEntry(currentRootItemId, nestedMatch[1], nestedMatch[2]);
@@ -237,7 +230,6 @@
             }
         }
 
-        // Parse Active Items
         let currentHeaderVendors = [];
         let currentSectionType = "vendor";
         decorDatabase = [];
@@ -259,7 +251,6 @@
                 continue;
             }
 
-            // Resilient regex to grab everything between { and } regardless of nesting, followed by the -- comment
             const lineMatch = rawLine.match(/\[(\d+)\]\s*=\s*\{(.*)\}\s*--\s*(.*)/);
             if (lineMatch) {
                 const itemId = lineMatch[1];
@@ -319,13 +310,14 @@
 
     function runMatcher() {
         const searchLines = document.getElementById('itemListInput').value.split('\n').map(s => s.trim()).filter(Boolean);
+        const resultsDiv = document.getElementById('results');
+
         if (searchLines.length === 0) return;
 
         const vendorGroups = {};
         const unmatched = [];
 
         for (let rawLine of searchLines) {
-            // Strip leading bullet points, leading quantities (e.g. "45x "), and trailing parens (e.g. "(dye)")
             let cleanQuery = rawLine.replace(/^[^a-zA-Z0-9]+/, '').replace(/^\d+\s*[xX*]\s*/i, '').replace(/\s*\([^)]*\)\s*$/, '').trim();
             const cleanLower = cleanQuery.toLowerCase();
             let match = null;
@@ -353,7 +345,8 @@
                     const dist = getEditDistance(cleanLower, d.name.toLowerCase());
                     if (dist < bestDist) { bestDist = dist; bestName = d.name; }
                 }
-                if (bestName && bestDist <= 4) match = decorDatabase.filter(d => d.name === bestName);
+                const maxAllowed = Math.max(2, Math.floor(cleanLower.length * 0.25));
+                if (bestName && bestDist <= maxAllowed) match = decorDatabase.filter(d => d.name === bestName);
             }
 
             if (match && match.length > 0) {
@@ -361,7 +354,6 @@
                     const groupKey = `${item.vendorName}:::${item.zone}`;
                     if (!vendorGroups[groupKey]) vendorGroups[groupKey] = { vendor: item.vendorName, zone: item.zone, items: [] };
                     
-                    // Prevent duplicate rendering if a vendor sells the same item multiple times internally
                     if (!vendorGroups[groupKey].items.some(i => i.rawInput === rawLine && i.name === item.name)) {
                         vendorGroups[groupKey].items.push({ ...item, rawInput: rawLine });
                     }
@@ -377,7 +369,7 @@
     function renderOutput(groups, unmatched) {
         const resultsDiv = document.getElementById('results');
         let html = "";
-        const groupKeys = Object.keys(groups).sort(); // Sort vendors alphabetically
+        const groupKeys = Object.keys(groups).sort(); 
 
         if (groupKeys.length === 0 && unmatched.length === 0) {
             resultsDiv.innerHTML = "<p>No matching items found.</p>";
@@ -386,6 +378,10 @@
 
         for (let key of groupKeys) {
             const grp = groups[key];
+            
+            // Sort items alphabetically by their actual database name
+            grp.items.sort((a, b) => a.name.localeCompare(b.name));
+
             html += `
                 <div class="vendor-card">
                     <div class="vendor-header">
